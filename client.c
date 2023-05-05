@@ -8,7 +8,7 @@
 #include <poll.h>
 
 #define SERVER_IP "127.0.0.1"
-#define PORT 4446
+#define PORT 4449
 #define BUFFER_SIZE 1024
 
 int main() {
@@ -41,7 +41,7 @@ int main() {
     fds[1].fd = STDIN_FILENO;
     fds[1].events = POLLIN;
     printf("[+] Client Running...\n");
-    printf("Enter a message: ");
+    printf("[-] Chat started.\n");
     while (1) {
         poll(fds, 2, -1);
 
@@ -56,7 +56,6 @@ int main() {
         }
 
         if (fds[1].revents & POLLIN) {
-            printf("Enter a message: ");
             scanf("%s", buffer);
             send(client_fd, buffer, sizeof buffer, 0);
             memset(buffer, '0', BUFFER_SIZE);
