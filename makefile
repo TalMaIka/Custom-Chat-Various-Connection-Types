@@ -1,12 +1,13 @@
-all: client server
+all: client server stnc
 	
 server: server.c
 	gcc server.c -o server
-	
+
+stnc: stnc.c
+	gcc stnc.c -o stnc
+
 client: client.c
 	gcc client.c -o client
 	
-.PHONY: clean all
-	
 clean: 
-	rm -rf *.o server client
+	rm -rf *.o server client stnc

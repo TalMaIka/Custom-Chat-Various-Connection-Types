@@ -8,10 +8,13 @@
 #include <poll.h>
 
 #define SERVER_IP "127.0.0.1"
-#define PORT 4449
 #define BUFFER_SIZE 1024
 
-int main() {
+int main(int argc, char *argv[]) {
+    if(argc != 3) {
+        perror("Usage: ./client IP PORT\n");
+        return 0;
+    }
     int client_fd, len;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
@@ -27,8 +30,8 @@ int main() {
     printf("Socket created.\n");
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = argv[1];
+    server_addr.sin_port = htons(atoi(argv[2]));
 
     if(connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
         perror("Connect error.");

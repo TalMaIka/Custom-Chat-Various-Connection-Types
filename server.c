@@ -19,11 +19,15 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#define PORT 4449
+
 #define BUFFER_SIZE 1024
 #define SERVER_IP "127.0.0.1"
 
-int main() {
+int main(int argc, char *argv[]) {
+    if(argc != 2) {
+        perror("Usage: ./server PORT\n");
+        return 0;
+    }
     int server_fd, client_fd, len;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
@@ -39,7 +43,7 @@ int main() {
     printf("Socket created.\n");
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(atoi(argv[1]));
 
     bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if(listen(server_fd, 1)==-1){
