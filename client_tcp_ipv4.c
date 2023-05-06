@@ -35,11 +35,12 @@ int main(int argc, char *argv[]) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(ipv4_port);
 
-    if (inet_pton(AF_INET, ipv4_addr, &server_addr.sin_addr) <= 0) {
-        perror("Error in the IP Adresse");
+    if (inet_aton(ipv4_addr, &server_addr.sin_addr) == 0) {
+        perror("Erreur lors de la conversion de l'adresse");
         close(client_fd);
         return 1;
     }
+    
 
     if(connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
         perror("Connect error.");
