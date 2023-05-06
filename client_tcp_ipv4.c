@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
-#define SERVER_IP "127.0.0.1"
 #define BUFFER_SIZE 1024
 
 int main(int argc, char *argv[]) {
@@ -36,7 +35,7 @@ int main(int argc, char *argv[]) {
     server_addr.sin_port = htons(ipv4_port);
 
     if (inet_aton(ipv4_addr, &server_addr.sin_addr) == 0) {
-        perror("Erreur lors de la conversion de l'adresse");
+        perror("Error while converting address \n");
         close(client_fd);
         return 1;
     }

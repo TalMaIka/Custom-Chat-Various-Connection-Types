@@ -4,9 +4,11 @@
 
 int main(int argc, char *argv[]) {
     char command[100];
-    if(argc < 3 || argc > 4) {
+    if(argc < 3 || argc > 7) {
         printf("The client side: stnc -c IP PORT\n");
         printf("The server side:stnc -s PORT\n");
+        printf("The client side: stnc -c IP PORT -p <type> <param>\n");
+        printf("The client side: stnc -c IP PORT -p <type> <param>\n");
         return 1;
     }
     if(argc == 3 && strcmp(argv[1], "-s") == 0) {

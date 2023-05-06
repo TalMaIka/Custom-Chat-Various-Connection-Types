@@ -22,12 +22,12 @@ int main(int argc, char *argv[]) {
     }
     int ipv4_port = atoi(argv[1]);
     int server_fd, client_fd, len;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
+    struct sockaddr_in server_addr;
+    socklen_t addr_len = sizeof(server_addr);
     char buffer[BUFFER_SIZE];
     struct pollfd fds[2];
 
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(server_fd < 0)
     {
         printf("\n Error : Could not create socket \n");
@@ -40,21 +40,7 @@ int main(int argc, char *argv[]) {
     server_addr.sin_port = htons(ipv4_port);
 
     bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if(listen(server_fd, 1)==-1){
-        perror("Listen error.");
-        close(server_fd);
-        return 1;
-    }
     printf("Bind done.\n");
-    client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
-    if( client_fd < 0)
-    {
-       printf("\n Error : Connect Failed \n");
-       close(server_fd);
-       close(client_fd);
-       return 1;
-    }
-    printf("Accepting....\n");
 
     fds[0].fd = client_fd;
     fds[0].events = POLLIN;
@@ -63,28 +49,30 @@ int main(int argc, char *argv[]) {
     printf("[+] Server Running...\n");
     printf("[-] Chat started.\n");
     sleep(1);
-    while (1) {
+    while (1)
+    {
         poll(fds, 2, -1);
 
-        if (fds[0].revents & POLLIN) {
-            len = recv(client_fd, buffer, BUFFER_SIZE, 0);
-            if(len == -1){
-                printf("Recv error.");
-                close(server_fd);
-                close(client_fd);
+        if (fds[0].revents & POLLIN)
+        {
+            len = recvfrom(fds[0].fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&server_addr, &addr_len);
+            if (len == -1)
+            {
+                printf("Recvfrom error.");
+                close(fds[0].fd);
                 return 1;
-        } 
-            printf("Client: %s", buffer);
-            memset(buffer, '0', BUFFER_SIZE);
+            }
+            printf("Server: %s", buffer);
+            memset(buffer, 0, BUFFER_SIZE);
         }
 
-        if (fds[1].revents & POLLIN) {
-            fgets(buffer,sizeof(buffer), stdin);
-            send(client_fd, buffer, sizeof buffer, 0);
-            memset(buffer, '0', BUFFER_SIZE);
+        if (fds[1].revents & POLLIN)
+        {
+            fgets(buffer, sizeof(buffer), stdin);
+            sendto(fds[0].fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&server_addr, addr_len);
+            memset(buffer, 0, BUFFER_SIZE);
         }
     }
-
     close(client_fd);
     close(server_fd);
     return 0;
