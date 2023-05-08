@@ -9,10 +9,24 @@
 
 #define BUFFER_SIZE 1024
 
-int main(int argc, char *argv[]) {
-    if(argc != 3) {
+int main(int argc, char *argv[])
+{
+    if (argc < 3 || argc > 6)
+    {
         perror("Usage: ./client IP PORT\n");
+        perror("Usage: ./client IP PORT -p <type> <param> \n");
         return 0;
+    }
+    int pFlag = 0;
+
+    // Saving the parameters [5] and [6] in string.
+    char *type;
+    char *param;
+    if (argc == 6 && strcmp(argv[3], "-p") == 0)
+    {
+        pFlag = 1;
+        type = argv[4];
+        param = argv[5];
     }
     const char *ipv4_addr = argv[1];
     int ipv4_port = atoi(argv[2]);
@@ -23,7 +37,7 @@ int main(int argc, char *argv[]) {
     struct pollfd fds[2];
 
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(client_fd < 0)
+    if (client_fd < 0)
     {
         printf("\n Error : Could not create socket \n");
         close(client_fd);
@@ -34,42 +48,52 @@ int main(int argc, char *argv[]) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(ipv4_port);
 
-    if (inet_aton(ipv4_addr, &server_addr.sin_addr) == 0) {
+    if (inet_aton(ipv4_addr, &server_addr.sin_addr) == 0)
+    {
         perror("Error while converting address \n");
         close(client_fd);
         return 1;
     }
-    
 
-    if(connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+    {
         perror("Connect error.");
         close(client_fd);
         return 1;
     }
     printf("Connected.\n");
-
+                if (pFlag == 1)
+            {
+                send(client_fd, argv[4], strlen(argv[5]) +1 , 0);
+                send(client_fd, argv[5], strlen(argv[5]) +1, 0);
+                pFlag = 0;
+            }
     fds[0].fd = client_fd;
     fds[0].events = POLLIN;
     fds[1].fd = STDIN_FILENO;
     fds[1].events = POLLIN;
     printf("[+] Client Running...\n");
     printf("[-] Chat started.\n");
-    while (1) {
+    while (1)
+    {
         poll(fds, 2, -1);
 
-        if (fds[0].revents & POLLIN) {
+        if (fds[0].revents & POLLIN)
+        {
             len = recv(client_fd, buffer, BUFFER_SIZE, 0);
-            if(len == -1){
-                printf("Recv error.");
+            if (len == 0)
+            {
+                printf("Server closed the connection.\n");
                 close(client_fd);
                 return 1;
-        } 
+            }
             printf("Server: %s", buffer);
             memset(buffer, '0', BUFFER_SIZE);
         }
 
-        if (fds[1].revents & POLLIN) {
-            fgets(buffer,sizeof(buffer), stdin);
+        if (fds[1].revents & POLLIN)
+        {
+            fgets(buffer, sizeof(buffer), stdin);
             send(client_fd, buffer, sizeof buffer, 0);
             memset(buffer, '0', BUFFER_SIZE);
         }
