@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/un.h>
 
 #define BUFFER_SIZE 1024
 #define ARGSIZE 10
@@ -26,6 +27,145 @@ long checksum(char *data)
     return sum;
 }
 
+//UDS DGRAM socket (server) and sending 100MB of data and checksum.
+void UDSdgram(char *socket_path)
+{
+    int server_fd;
+    struct sockaddr_un server_addr, client_addr;
+    char buffer[BUFFER_SIZE];
+    socklen_t client_addr_size;
+    long calculated_checksum = 0;
+
+    if ((server_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(struct sockaddr_un));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("[-] Bind failed.\n");
+        exit(1);
+    }
+
+    printf("[+] Waiting for data...\n");
+    size_t total_bytes_received = 0;
+    int size = 30000;
+    char *data = (char *)malloc(SIZE);
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
+    while (total_bytes_received < SIZE)
+    {
+        if (total_bytes_received + size > SIZE)
+        {
+            size = SIZE - total_bytes_received;
+        }
+        ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, size, 0, (struct sockaddr *)&client_addr, &client_addr_size);
+        total_bytes_received += bytes_received;
+    }
+    calculated_checksum = checksum(data);
+    gettimeofday(&end_time, NULL);
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    printf("---------------------------------------\n");
+    printf("|    Received a Chunk of bytes         |\n");
+    printf("| Type : UDS   | Param : dgram |\n");
+    printf("| Info : Bytes received: %zd\n", total_bytes_received);
+    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    double percentage_received = ((double)total_bytes_received / SIZE) * 100;
+    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("---------------------------------------\n");
+
+    close(server_fd);
+    unlink(socket_path);
+    free(data);
+}
+
+//UDS STREAM socket (server) and sending 100MB of data and checksum.
+void UDSstream(char *socket_path)
+{
+    int server_fd, client_fd;
+    struct sockaddr_un server_addr, client_addr;
+    char buffer[BUFFER_SIZE];
+    socklen_t client_addr_size;
+    long calculated_checksum = 0;
+
+    if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(struct sockaddr_un));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+
+    // Will free an already bound port that's not in use.
+    int yes = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
+    {
+        perror("setsockopt");
+        exit(1);
+    }
+
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("[-] Bind failed.\n");
+        exit(1);
+    }
+
+    if (listen(server_fd, 1) < 0)
+    {
+        perror("[-] Listen failed.\n");
+        exit(1);
+    }
+
+    printf("[+] Server ready to receive data.\n");
+    client_addr_size = sizeof(client_addr);
+    client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_size);
+    if (client_fd < 0)
+    {
+        perror("[-] Accept failed.\n");
+        exit(1);
+    }
+
+    size_t total_bytes_received = 0;
+    int size = 30000;
+    char *data = (char *)malloc(SIZE * sizeof(char));
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
+    while (total_bytes_received < SIZE)
+    {
+        if (total_bytes_received + size > SIZE)
+        {
+            size = SIZE - total_bytes_received;
+        }
+        ssize_t bytes_received = recv(client_fd, data + total_bytes_received, size, 0);
+        total_bytes_received += bytes_received;
+    }
+
+    calculated_checksum = checksum(data);
+    gettimeofday(&end_time, NULL);
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    printf("---------------------------------------\n");
+    printf("|    Received a Chunk of bytes         |\n");
+    printf("| Type : UDS   | Param : stream |\n");
+    printf("| Info : Bytes received: %zd\n", total_bytes_received);
+    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    double percentage_received = ((double)total_bytes_received / SIZE) * 100;
+    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("---------------------------------------\n");
+
+    close(client_fd);
+    close(server_fd);
+    unlink(socket_path);
+    free(data);
+}
 
 // Establishing a IPv4 UDP connection to be able to recive chuck of 100MB.
 void UDPipv6(int port)
@@ -101,12 +241,7 @@ void UDPipv6(int port)
             total_bytes_received += bytes_received;
         }
     }
-
-    if (total_bytes_received == SIZE)
-    {
-        calculated_checksum = checksum(data);
-    }
-
+    calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
 
@@ -378,6 +513,16 @@ void TCPipv6(int port)
 void socketFactory(char *type, char *param, int port)
 {
     printf("Welcome to the socket factory.\n");
+    if(strcmp(type, "uds") == 0)
+    {
+        char *socket_path = "/tmp/socket";
+        if(strcmp(param,"dgram")==0){
+            UDSdgram(socket_path);
+        }
+        else{
+           UDSstream(socket_path);
+        }
+    }
     if (strcmp(type, "ipv4") == 0)
     {
         if (strcmp(param, "tcp") == 0)
