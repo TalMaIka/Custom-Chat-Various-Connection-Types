@@ -37,6 +37,45 @@ long checksum(char *data)
 }
 
 
+//IPv4 TCP socket (client) and sending 100MB of data and checksum.
+void UDPipv6(int port,char *ip)
+{
+    int client_fd;
+    struct sockaddr_in6 server_addr;
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '0', BUFFER_SIZE);
+    if ((client_fd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+    server_addr.sin6_family = AF_INET;
+    server_addr.sin6_port = htons(port+1);
+    if(inet_pton(AF_INET6, ip, &server_addr.sin6_addr) <= 0)
+    {
+        perror("[-] Invalid address.\n");
+        exit(1);
+    }
+    printf("[+] Connected to server.\n");
+    char *data = generete_random_data();
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n",Chcksum);
+    printf("[+] Sending data...\n");
+    size_t total_bytes_sent = 0;
+    int size = 30000;
+    while(total_bytes_sent < SIZE){
+        if(total_bytes_sent + size > SIZE){
+            size = SIZE - total_bytes_sent;
+        }
+        ssize_t bytes_sent = sendto(client_fd, data+total_bytes_sent, size, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        total_bytes_sent += bytes_sent;
+    }
+    printf("[+] Sent %ld bytes.\n", total_bytes_sent);
+    printf("[+] Data sent.\n");
+    close(client_fd);
+    free(data);
+}
+
 
 //IPv4 TCP socket (client) and sending 100MB of data and checksum.
 void UDPipv4(int port,char *ip)
@@ -63,8 +102,12 @@ void UDPipv4(int port,char *ip)
     printf("Checksum : %ld\n",Chcksum);
     printf("[+] Sending data...\n");
     size_t total_bytes_sent = 0;
-    while(total_bytes_sent < SIZE + SIZE/10){
-        ssize_t bytes_sent = sendto(client_fd, data, 40000, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    int size = 30000;
+    while(total_bytes_sent < SIZE){
+        if(total_bytes_sent + size > SIZE){
+            size = SIZE - total_bytes_sent;
+        }
+        ssize_t bytes_sent = sendto(client_fd, data+total_bytes_sent, size, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
         total_bytes_sent += bytes_sent;
     }
     printf("[+] Sent %ld bytes.\n", total_bytes_sent);
@@ -172,15 +215,17 @@ void socketFactory(char *type, char *param,int port,char *ip){
     }
     if (strcmp(type, "ipv6") == 0)
     {
+        ip = "::1";
         if (strcmp(param, "tcp") == 0)
         {
             printf("TCP IPv6\n");
-            ip = "::1";
+            
             TCPipv6(ip,port);
         }
         else if(strcmp(param, "udp") == 0)
         {
             printf("UDP IPv6\n");
+            UDPipv6(port,ip);
         }
         else
         {
