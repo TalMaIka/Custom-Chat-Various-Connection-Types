@@ -272,7 +272,7 @@ void TCPipv4(int port)
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL); // Utilisez gettimeofday au lieu de time
     char *data = (char *)malloc(SIZE);
-    int size = 82000;
+    int size = 1500;
     while ((bytes_received = recv(client_fd, data + total_bytes_received, size, 0)) > 0)
     {
         if(size + total_bytes_received > SIZE)
