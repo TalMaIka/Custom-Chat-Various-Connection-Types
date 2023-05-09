@@ -11,8 +11,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-
-
 #define BUFFER_SIZE 1024
 #define ARGSIZE 10
 #define SIZE 104857600 // 100BM chunk of data.
@@ -25,6 +23,80 @@ long checksum(char *data)
         sum += data[i];
     }
     return sum;
+}
+
+// Establishing a IPv4 UDP connection to be able to recive chuck of 100MB.
+void UDPipv4(int port)
+{
+    int server_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len;
+    int opt = 1;
+    char buffer[BUFFER_SIZE];
+    socklen_t addr_len = sizeof(client_addr);
+    memset(buffer, '0', BUFFER_SIZE);
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+    // Will free an already bound port that's not in use.
+    int yes = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
+    {
+        perror("setsockopt");
+        exit(1);
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(port + 1);
+    // Forcefully attaching socket to the port 8080
+    printf("[+] Binding to port %d\n", port + 1);
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("[-] Bind failed.\n");
+        exit(1);
+    }
+    ssize_t bytes_received = 0;
+    ssize_t total_bytes_received = 0;
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
+    char *data = (char *)malloc(SIZE);
+    printf("[+] Waiting for data...\n");
+    while (total_bytes_received < SIZE)
+    {
+        ssize_t bytes_received = recvfrom(server_fd, data, SIZE, 0, (struct sockaddr *)&client_addr, &addr_len);
+        if (bytes_received == 0)
+        {
+            break;
+        }
+        if (bytes_received < 0)
+        {
+            perror("recvfrom");
+            exit(1);
+        }
+        total_bytes_received += bytes_received;
+    }
+    long calculated_checksum = checksum(data);
+    printf("Checksum : %ld\n", calculated_checksum);
+
+    gettimeofday(&end_time, NULL);                                                                                        // Utilisez gettimeofday au lieu de time
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
+
+    printf("---------------------------------------\n");
+    printf("|    Received a Chuck of bytes         |\n");
+    printf("| Type : Ipv4   | Param : UDP protcol  |\n");
+    printf("| Info : Bytes received: %zd\n", total_bytes_received);
+    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms); // Affichez le temps écoulé en ms
+    double percentage_received = ((double)total_bytes_received / SIZE) * 100;
+    printf("|Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("---------------------------------------\n");
+
+    free(data);
+    close(server_fd);
+    exit(0);
 }
 
 // Establishing a IPv4 TCP connection to be able to recive chuck of 100MB.
@@ -75,14 +147,14 @@ void TCPipv4(int port)
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL); // Utilisez gettimeofday au lieu de time
     char *data = (char *)malloc(SIZE);
-    while ((bytes_received = recv(client_fd, data+total_bytes_received, BUFFER_SIZE, 0)) > 0)
+    while ((bytes_received = recv(client_fd, data + total_bytes_received, BUFFER_SIZE, 0)) > 0)
     {
         total_bytes_received += bytes_received;
     }
     long calculated_checksum = checksum(data);
-    printf("Checksum : %ld\n",calculated_checksum);
+    printf("Checksum : %ld\n", calculated_checksum);
 
-    gettimeofday(&end_time, NULL); // Utilisez gettimeofday au lieu de time
+    gettimeofday(&end_time, NULL);                                                                                        // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
 
     printf("---------------------------------------\n");
@@ -148,14 +220,14 @@ void TCPipv6(int port)
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL); // Utilisez gettimeofday au lieu de time
     char *data = (char *)malloc(SIZE);
-    while ((bytes_received = recv(client_fd, data+total_bytes_received, BUFFER_SIZE, 0)) > 0)
+    while ((bytes_received = recv(client_fd, data + total_bytes_received, BUFFER_SIZE, 0)) > 0)
     {
         total_bytes_received += bytes_received;
     }
     long calculated_checksum = checksum(data);
-    printf("Checksum : %ld\n",calculated_checksum);
+    printf("Checksum : %ld\n", calculated_checksum);
 
-    gettimeofday(&end_time, NULL); // Utilisez gettimeofday au lieu de time
+    gettimeofday(&end_time, NULL);                                                                                        // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
 
     printf("---------------------------------------\n");
@@ -173,8 +245,8 @@ void TCPipv6(int port)
     exit(0);
 }
 
-
-void socketFactory(char *type, char *param,int port){
+void socketFactory(char *type, char *param, int port)
+{
     printf("Welcome to the socket factory.\n");
     if (strcmp(type, "ipv4") == 0)
     {
@@ -183,9 +255,10 @@ void socketFactory(char *type, char *param,int port){
             printf("TCP IPv4\n");
             TCPipv4(port);
         }
-        else if(strcmp(param, "udp") == 0)
+        else if (strcmp(param, "udp") == 0)
         {
             printf("UDP IPv4\n");
+            UDPipv4(port);
         }
         else
         {
@@ -199,7 +272,7 @@ void socketFactory(char *type, char *param,int port){
             printf("TCP IPv6\n");
             TCPipv6(port);
         }
-        else if(strcmp(param, "udp") == 0)
+        else if (strcmp(param, "udp") == 0)
         {
             printf("UDP IPv6\n");
         }
@@ -276,7 +349,6 @@ int main(int argc, char *argv[])
     if (argc == 3 && strcmp(argv[2], "-p") == 0)
     {
         pFlag = 1;
-        
     }
     if (argc == 4 && strcmp(argv[3], "-q") == 0)
     {
@@ -330,7 +402,7 @@ int main(int argc, char *argv[])
         socketFactory(type, param, port);
     }
     else
-    {   
+    {
         printf("[+] Connecting to the chat...\n");
         chatTCP(client_fd, server_fd);
     }

@@ -37,6 +37,42 @@ long checksum(char *data)
 }
 
 
+
+//IPv4 TCP socket (client) and sending 100MB of data and checksum.
+void UDPipv4(int port,char *ip)
+{
+    int client_fd;
+    struct sockaddr_in server_addr;
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '0', BUFFER_SIZE);
+    if ((client_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port+1);
+    if(inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0)
+    {
+        perror("[-] Invalid address.\n");
+        exit(1);
+    }
+    printf("[+] Connected to server.\n");
+    char *data = generete_random_data();
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n",Chcksum);
+    printf("[+] Sending data...\n");
+    size_t total_bytes_sent = 0;
+    while(total_bytes_sent < SIZE + SIZE/10){
+        ssize_t bytes_sent = sendto(client_fd, data, 40000, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        total_bytes_sent += bytes_sent;
+    }
+    printf("[+] Sent %ld bytes.\n", total_bytes_sent);
+    printf("[+] Data sent.\n");
+    close(client_fd);
+    free(data);
+}
+
 //IPv4 TCP socket (client) and sending 100MB of data and checksum.
 void TCPipv4(char *ip, int port)
 {
@@ -127,6 +163,7 @@ void socketFactory(char *type, char *param,int port,char *ip){
         else if(strcmp(param, "udp") == 0)
         {
             printf("UDP IPv4\n");
+            UDPipv4(port,ip);
         }
         else
         {
@@ -216,7 +253,6 @@ int main(int argc, char *argv[])
         pFlag = 1;
         type = argv[4];
         param = argv[5];
-        printf("Param: %s\n", param);
     }
     const char *ip_addr = argv[1];
     int port = atoi(argv[2]);
