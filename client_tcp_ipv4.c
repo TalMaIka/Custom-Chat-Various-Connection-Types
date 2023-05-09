@@ -56,6 +56,7 @@ void TCPipv4(char *ip, int port)
         perror("[-] Invalid address.\n");
         exit(EXIT_FAILURE);
     }
+    sleep(2);
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("[-] Connection failed.\n");

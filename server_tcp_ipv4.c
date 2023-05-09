@@ -9,10 +9,9 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <signal.h>
 #include <sys/time.h>
-#include <signal.h>
-#include <time.h>
+
+
 
 #define BUFFER_SIZE 1024
 #define ARGSIZE 10
@@ -63,20 +62,24 @@ void TCPipv4(int port)
     }
     ssize_t bytes_received = 0;
     ssize_t total_bytes_received = 0;
-    time_t start_time = time(NULL);
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL); // Utilisez gettimeofday au lieu de time
 
     while ((bytes_received = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0)
     {
         total_bytes_received += bytes_received;
     }
-    time_t end_time = time(NULL);
-    double time_spent = difftime(end_time, start_time);
+    gettimeofday(&end_time, NULL); // Utilisez gettimeofday au lieu de time
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
 
-    printf("Bytes received: %zd\n", total_bytes_received);
-    printf("Time spent: %.2f seconds\n", time_spent);
-
+    printf("---------------------------------------\n");
+    printf("|    Received a Chuck of bytes         |\n");
+    printf("| Type : Ipv4   | Param : TCP protcol  |\n");
+    printf("| Info : Bytes received: %zd\n", total_bytes_received);
+    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms); // Affichez le temps écoulé en ms
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("Percentage of bytes received: %.2f%%\n", percentage_received);
+    printf("|Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("---------------------------------------\n");
 
     close(server_fd);
     close(client_fd);
@@ -126,8 +129,8 @@ void recArgs(int client_fd, char *type, char *param)
 {
     recv(client_fd, type, ARGSIZE, 0);
     recv(client_fd, param, ARGSIZE, 0);
-    printf("Reciving the parameters.");
-    printf("Type: %s\n", type);
+    printf("Reciving the parameters :");
+    printf("Type: %s ;", type);
     printf("Param: %s\n", param);
 }
 
@@ -185,9 +188,10 @@ int main(int argc, char *argv[])
     int qFlag = 0;
     char *type = (char *)malloc(ARGSIZE);
     char *param = (char *)malloc(ARGSIZE);
-    if (argc > 3 && strcmp(argv[2], "-p") == 0)
+    if (argc == 3 && strcmp(argv[2], "-p") == 0)
     {
         pFlag = 1;
+        
     }
     if (argc == 4 && strcmp(argv[3], "-q") == 0)
     {
@@ -235,13 +239,14 @@ int main(int argc, char *argv[])
         return 1;
     }
     printf("Accepting....\n");
-    if (pFlag == 0)
+    if (pFlag == 1)
     {
         recArgs(client_fd, type, param);
         socketFactory(type, param, port);
     }
     else
-    {
+    {   
+        printf("[+] Connecting to the chat...\n");
         chatTCP(client_fd, server_fd);
     }
 
