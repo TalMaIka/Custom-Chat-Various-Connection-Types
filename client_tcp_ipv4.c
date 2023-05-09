@@ -64,7 +64,8 @@ void TCPipv4(char *ip, int port)
     }
     printf("[+] Connected to server.\n");
     char *data = generete_random_data();
-    long sum = checksum(data);
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n",Chcksum);
     printf("[+] Sending data...\n");
     int sent = 0;
     sent = send(client_fd, data, SIZE, 0);

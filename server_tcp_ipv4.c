@@ -17,6 +17,16 @@
 #define ARGSIZE 10
 #define SIZE 104857600 // 100BM chunk of data.
 
+long checksum(char *data)
+{
+    long sum = 0;
+    for (int i = 0; i < SIZE; i++)
+    {
+        sum += data[i];
+    }
+    return sum;
+}
+
 // Establishing a IPv4 TCP connection to be able to recive chuck of 100MB.
 void TCPipv4(int port)
 {
@@ -64,11 +74,14 @@ void TCPipv4(int port)
     ssize_t total_bytes_received = 0;
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL); // Utilisez gettimeofday au lieu de time
-
-    while ((bytes_received = recv(client_fd, buffer, BUFFER_SIZE, 0)) > 0)
+    char *data = (char *)malloc(SIZE);
+    while ((bytes_received = recv(client_fd, data+total_bytes_received, BUFFER_SIZE, 0)) > 0)
     {
         total_bytes_received += bytes_received;
     }
+    long calculated_checksum = checksum(data);
+    printf("Checksum : %ld\n",calculated_checksum);
+
     gettimeofday(&end_time, NULL); // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
 
@@ -81,6 +94,7 @@ void TCPipv4(int port)
     printf("|Percentage bytes received: %.2f%%    |\n", percentage_received);
     printf("---------------------------------------\n");
 
+    free(data);
     close(server_fd);
     close(client_fd);
     exit(0);
