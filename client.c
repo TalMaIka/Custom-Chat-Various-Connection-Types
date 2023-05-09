@@ -47,20 +47,58 @@ void TCPipv4(char *ip, int port)
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("[-] Socket failed.\n");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port+1);
     if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0)
     {
         perror("[-] Invalid address.\n");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
     sleep(2);
     if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("[-] Connection failed.\n");
-        exit(EXIT_FAILURE);
+        exit(1);
+    }
+    printf("[+] Connected to server.\n");
+    char *data = generete_random_data();
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n",Chcksum);
+    printf("[+] Sending data...\n");
+    int sent = 0;
+    sent = send(client_fd, data, SIZE, 0);
+    printf("[+] Sent %d bytes.\n", sent);
+    printf("[+] Data sent.\n");
+    close(client_fd);
+    free(data);
+}
+
+//IPv6 TCP socket (client) and sending 100MB of data and checksum.
+void TCPipv6(char *ip, int port)
+{
+    int client_fd;
+    struct sockaddr_in6 server_addr;
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '0', BUFFER_SIZE);
+    if ((client_fd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+    server_addr.sin6_family = AF_INET6;
+    server_addr.sin6_port = htons(port+1);
+    if (inet_pton(AF_INET6, ip, &server_addr.sin6_addr) <= 0)
+    {
+        perror("[-] Invalid address.\n");
+        exit(1);
+    }
+    sleep(2);
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("[-] Connection failed.\n");
+        exit(1);
     }
     printf("[+] Connected to server.\n");
     char *data = generete_random_data();
@@ -86,22 +124,24 @@ void socketFactory(char *type, char *param,int port,char *ip){
             printf("TCP IPv4\n");
             TCPipv4(ip,port);
         }
-        else if (strcmp(param, "ipv6") == 0)
+        else if(strcmp(param, "udp") == 0)
         {
-            printf("TCP IPv6\n");
+            printf("UDP IPv4\n");
         }
         else
         {
             printf("Invalid parameter.\n");
         }
     }
-    else if (strcmp(type, "udp") == 0)
+    if (strcmp(type, "ipv6") == 0)
     {
-        if (strcmp(param, "ipv4") == 0)
+        if (strcmp(param, "tcp") == 0)
         {
-            printf("UDP IPv4\n");
+            printf("TCP IPv6\n");
+            ip = "::1";
+            TCPipv6(ip,port);
         }
-        else if (strcmp(param, "ipv6") == 0)
+        else if(strcmp(param, "udp") == 0)
         {
             printf("UDP IPv6\n");
         }
@@ -109,10 +149,6 @@ void socketFactory(char *type, char *param,int port,char *ip){
         {
             printf("Invalid parameter.\n");
         }
-    }
-    else
-    {
-        printf("Invalid type.\n");
     }
 }
 
