@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
@@ -36,6 +37,91 @@ long checksum(char *data)
     return sum;
 }
 
+//UDS Stream socket (client) and sending 100MB of data and checksum.
+void UDSstream(char *socket_path)
+{
+    int client_fd;
+    struct sockaddr_un server_addr;
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '0', BUFFER_SIZE);
+
+    if ((client_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(struct sockaddr_un));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+    sleep(0.5);
+    if (connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("[-] Connect failed.\n");
+        exit(1);
+    }
+
+    printf("[+] Connected to server.\n");
+    char *data = generete_random_data();
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n", Chcksum);
+    printf("[+] Sending data...\n");
+    size_t total_bytes_sent = 0;
+    int size = 30000;
+    while (total_bytes_sent < SIZE)
+    {
+        if (total_bytes_sent + size > SIZE)
+        {
+            size = SIZE - total_bytes_sent;
+        }
+        ssize_t bytes_sent = send(client_fd, data + total_bytes_sent, size, 0);
+        total_bytes_sent += bytes_sent;
+    }
+    printf("[+] Sent %ld bytes.\n", total_bytes_sent);
+    printf("[+] Data sent.\n");
+    close(client_fd);
+    free(data);
+}
+
+//UDS DGRAM socket (client) and sending 100MB of data and checksum.
+void UDSdgram(char *socket_path)
+{
+    int client_fd;
+    struct sockaddr_un server_addr;
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '0', BUFFER_SIZE);
+    
+    if ((client_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("[-] Socket failed.\n");
+        exit(1);
+    }
+
+    memset(&server_addr, 0, sizeof(struct sockaddr_un));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+
+    printf("[+] Connected to server.\n");
+    char *data = generete_random_data();
+    long Chcksum = checksum(data);
+    printf("Checksum : %ld\n", Chcksum);
+    printf("[+] Sending data...\n");
+    size_t total_bytes_sent = 0;
+    int size = 30000;
+    while (total_bytes_sent < SIZE)
+    {
+        if (total_bytes_sent + size > SIZE)
+        {
+            size = SIZE - total_bytes_sent;
+        }
+        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        total_bytes_sent += bytes_sent;
+    }
+    printf("[+] Sent %ld bytes.\n", total_bytes_sent);
+    printf("[+] Data sent.\n");
+    close(client_fd);
+    free(data);
+}
 
 //IPv4 TCP socket (client) and sending 100MB of data and checksum.
 void UDPipv6(int port,char *ip)
@@ -196,6 +282,17 @@ void TCPipv6(char *ip, int port)
 
 void socketFactory(char *type, char *param,int port,char *ip){
     printf("Welcome to the socket factory.\n");
+    if(strcmp(type, "uds") == 0)
+    {
+     char *socket_path = "/tmp/socket";
+     if(strcmp(param, "dgram") == 0){
+        UDSdgram(socket_path);
+     }
+     else{
+        UDSstream(socket_path);
+     }
+    }
+
     if (strcmp(type, "ipv4") == 0)
     {
         if (strcmp(param, "tcp") == 0)
