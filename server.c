@@ -16,6 +16,7 @@
 #define SIZE 104857600 // 100BM chunk of data.
 #define TIME_OUT 1
 long checkSum = 0;
+int qFlag = 0;
 
 long checksum(char *data) {
     long sum = 0;
@@ -26,13 +27,18 @@ long checksum(char *data) {
 }
 
 void pipe_client(char *PIPENAME) {
+    sleep(1);
     int pipe_fd;
     char *data = (char *) malloc(SIZE);
     long read_bytes;
     size_t total_bytes = 0;
-    printf("[+] Waiting for connection.\n");
+    if(!qFlag){
+        printf("[+] Waiting for connection.\n");
+    }
     pipe_fd = open(PIPENAME, O_RDONLY);
-    printf("[+] Connected to the pipe.\n");
+    if(!qFlag) {
+        printf("[+] Connected to the pipe.\n");
+    }
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL);
     while ((read_bytes = read(pipe_fd, data+total_bytes, BUFFER_SIZE)) > 0) {
@@ -44,20 +50,23 @@ void pipe_client(char *PIPENAME) {
     long calculated_checksum =  checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms =(end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-    if (calculated_checksum == checkSum) {
+    if (calculated_checksum == checkSum && !qFlag){
         printf("[+] Valid Checksum !.\n");
     }
-
-    printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         \n");
-    printf("| Type : mmap   | Param : %s \n", PIPENAME);
-    printf("| Info : Bytes received: %ld\n", total_bytes);
-    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
-    double percentage_received = ((double) total_bytes / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
-    printf("| Checksum : %ld                        \n", calculated_checksum);
-    printf("---------------------------------------\n");
-
+    if(!qFlag){
+        printf("---------------------------------------\n");
+        printf("|    Received a Chunk of bytes         \n");
+        printf("| Type : pipe   | Param : %s \n", PIPENAME);
+        printf("| Info : Bytes received: %ld\n", total_bytes);
+        printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
+        double percentage_received = ((double) total_bytes / SIZE) * 100;
+        printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+        printf("| Checksum : %ld                        \n", calculated_checksum);
+        printf("---------------------------------------\n");
+    }
+    else{
+        printf("pipe,%ld",time_spent_ms);
+    }
     close(pipe_fd);
     unlink(PIPENAME);
 
@@ -84,10 +93,14 @@ void mmap_server(char *FILENAME) {
         perror("[-] mmap failed.\n");
         exit(1);
     }
-    printf("[+] Server ready to receive data.\n");
+    if(!qFlag) {
+        printf("[+] Server ready to receive data.\n");
+    }
     // Wait for the client to write data and set the first byte to '1'
     sleep(2);
-    printf("[+] Waiting to the client to finish writing...\n");
+    if(!qFlag) {
+        printf("[+] Waiting to the client to finish writing...\n");
+    }
     long size = 0;
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL);
@@ -98,20 +111,24 @@ void mmap_server(char *FILENAME) {
     gettimeofday(&end_time, NULL);
     long time_spent_ms =
             (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-    if (calculated_checksum == checkSum) {
+    if (calculated_checksum == checkSum && !qFlag) {
         printf("[+] Valid Checksum !.\n");
         size = SIZE;
     }
-    printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         \n");
-    printf("| Type : mmap   | Param : %s \n", FILENAME);
-    printf("| Info : Bytes received: %ld\n", size);
-    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
-    double percentage_received = ((double) size / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
-    printf("| Checksum : %ld                        \n", calculated_checksum);
-    printf("---------------------------------------\n");
-
+    if(!qFlag) {
+        printf("---------------------------------------\n");
+        printf("|    Received a Chunk of bytes         \n");
+        printf("| Type : mmap   | Param : %s \n", FILENAME);
+        printf("| Info : Bytes received: %ld\n", size);
+        printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
+        double percentage_received = ((double) size / SIZE) * 100;
+        printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+        printf("| Checksum : %ld                        \n", calculated_checksum);
+        printf("---------------------------------------\n");
+    }
+    else{
+        printf("mmap,%ld",time_spent_ms);
+    }
 
     // Cleanup
     munmap(shared_memory, SIZE);
@@ -141,8 +158,9 @@ void UDSdgram(char *socket_path) {
         perror("[-] Bind failed.\n");
         exit(1);
     }
-
-    printf("[+] Waiting for data...\n");
+    if(!qFlag) {
+        printf("[+] Waiting for data...\n");
+    }
     size_t total_bytes_received = 0;
     int size = 30000;
     char *data = (char *) malloc(SIZE);
@@ -160,19 +178,23 @@ void UDSdgram(char *socket_path) {
     gettimeofday(&end_time, NULL);
     long time_spent_ms =
             (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-    if (calculated_checksum == checkSum) {
+    if (calculated_checksum == checkSum && !qFlag ) {
         printf("[+] Valid Checksum !.\n");
     }
-    printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         \n");
-    printf("| Type : UDS   | Param : dgram \n");
-    printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
-    double percentage_received = ((double) total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
-    printf("| Checksum : %ld                        \n", calculated_checksum);
-    printf("---------------------------------------\n");
-
+    if(!qFlag) {
+        printf("---------------------------------------\n");
+        printf("|    Received a Chunk of bytes         \n");
+        printf("| Type : UDS   | Param : dgram \n");
+        printf("| Info : Bytes received: %zd\n", total_bytes_received);
+        printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
+        double percentage_received = ((double) total_bytes_received / SIZE) * 100;
+        printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+        printf("| Checksum : %ld                        \n", calculated_checksum);
+        printf("---------------------------------------\n");
+    }
+    else{
+        printf("uds_dgram,%ld",time_spent_ms);
+    }
     close(server_fd);
     unlink(socket_path);
     free(data);
@@ -211,8 +233,9 @@ void UDSstream(char *socket_path) {
         perror("[-] Listen failed.\n");
         exit(1);
     }
-
-    printf("[+] Server ready to receive data.\n");
+    if(!qFlag) {
+        printf("[+] Server ready to receive data.\n");
+    }
     client_addr_size = sizeof(client_addr);
     client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_size);
     if (client_fd < 0) {
@@ -237,19 +260,23 @@ void UDSstream(char *socket_path) {
     gettimeofday(&end_time, NULL);
     long time_spent_ms =
             (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-    if (calculated_checksum == checkSum) {
+    if (calculated_checksum == checkSum && !qFlag  ) {
         printf("[+] Valid Checksum !.\n");
     }
-    printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         \n");
-    printf("| Type : UDS   | Param : stream \n");
-    printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
-    double percentage_received = ((double) total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
-    printf("| Checksum : %ld                        \n", calculated_checksum);
-    printf("---------------------------------------\n");
-
+    if(!qFlag) {
+        printf("---------------------------------------\n");
+        printf("|    Received a Chunk of bytes         \n");
+        printf("| Type : UDS   | Param : stream \n");
+        printf("| Info : Bytes received: %zd\n", total_bytes_received);
+        printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
+        double percentage_received = ((double) total_bytes_received / SIZE) * 100;
+        printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+        printf("| Checksum : %ld                        \n", calculated_checksum);
+        printf("---------------------------------------\n");
+    }
+    else{
+        printf("uds_stream,%ld",time_spent_ms);
+    }
     close(client_fd);
     close(server_fd);
     unlink(socket_path);
@@ -259,11 +286,9 @@ void UDSstream(char *socket_path) {
 // Establishing a IPv4 UDP connection to be able to recive chuck of 100MB.
 void UDPipv6(int port) {
     int server_fd;
-    struct sockaddr_in6 server_addr, client_addr;
-    socklen_t client_len;
-    int opt = 1;
+    struct sockaddr_in6 server_addr;
     char buffer[BUFFER_SIZE];
-    socklen_t addr_len = sizeof(client_addr);
+    socklen_t addr_len = sizeof(server_addr);
     memset(buffer, '0', BUFFER_SIZE);
 
     // Creating socket file descriptor
@@ -284,7 +309,9 @@ void UDPipv6(int port) {
     server_addr.sin6_port = htons(port + 1);
 
     // Forcefully attaching socket to the port 8080
-    printf("[+] Binding to port %d\n", port + 1);
+    if(!qFlag) {
+        printf("[+] Binding to port %d\n", port + 1);
+    }
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
         perror("[-] Bind failed.\n");
         exit(1);
@@ -297,8 +324,9 @@ void UDPipv6(int port) {
     struct pollfd pfd;
     pfd.fd = server_fd;
     pfd.events = POLLIN;
-
-    printf("[+] Waiting for data...\n");
+    if(!qFlag) {
+        printf("[+] Waiting for data...\n");
+    }
     struct timeval start_time, end_time;
     gettimeofday(&start_time, NULL);
     while (total_bytes_received < SIZE) {
@@ -307,16 +335,17 @@ void UDPipv6(int port) {
             perror("poll");
             exit(1);
         } else if (result == 0) {
-            printf("Timeout occurred.\n");
+            if(!qFlag){
+                printf("Timeout occurred.\n");
+            }
             break;
         } else {
             ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, SIZE - total_bytes_received, 0,
-                                              (struct sockaddr *) &client_addr, &addr_len);
+                                              (struct sockaddr *) &server_addr, &addr_len);
             if (bytes_received < 0) {
                 perror("recvfrom");
                 exit(1);
             }
-            //printf("Bytes received: %zd\n", bytes_received);
             total_bytes_received += bytes_received;
         }
     }
@@ -670,7 +699,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     int pFlag = 0;
-    int qFlag = 0;
     char *type = (char *) malloc(ARGSIZE);
     char *param = (char *) malloc(ARGSIZE);
     if (argc == 3 && strcmp(argv[2], "-p") == 0) {
@@ -723,7 +751,6 @@ int main(int argc, char *argv[]) {
         printf("[+] Connecting to the chat...\n");
         chatTCP(client_fd, server_fd);
     }
-
     close(client_fd);
     close(server_fd);
     return 0;

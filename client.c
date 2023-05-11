@@ -37,6 +37,7 @@ long checksum(char *data) {
 
 //Pipeing filename and sending 100MB of data and checksum (FIFO).
 void pipe_client(char *data, char *PIPENAME) {
+    sleep(1);
     int pipe_fd;
     ssize_t sent_bytes = 0;
     mknod(PIPENAME, S_IFIFO | 0666, 0);
@@ -46,7 +47,9 @@ void pipe_client(char *data, char *PIPENAME) {
         sent_bytes += write(pipe_fd, data + sent_bytes, BUFFER_SIZE);
     }
     printf("[+] Data sent.\n");
+
     close(pipe_fd);
+    unlink(PIPENAME);
 }
 
 
@@ -396,7 +399,6 @@ int main(int argc, char *argv[]) {
         socketFactory(argv[4], argv[5], port, data);
         free(data);
     }
-
     close(client_fd);
     return 0;
 }
