@@ -4,18 +4,18 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <poll.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/un.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #define BUFFER_SIZE 1024
 #define ARGSIZE 10
 #define SIZE 104857600 // 100BM chunk of data.
-#define TIME_OUT 5
+#define TIME_OUT 1
+long checkSum = 0;
 
 long checksum(char *data)
 {
@@ -25,6 +25,62 @@ long checksum(char *data)
         sum += data[i];
     }
     return sum;
+}
+
+//mmap server and sending 100MB of data and checksum.
+void mmap_server(char *FILENAME) {
+    int fd;
+    char *shared_memory;
+    char* data = (char*)malloc(SIZE);
+    long calculated_checksum =0; 
+    fd = open(FILENAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        perror("[-] open failed.\n");
+        exit(1);
+    }
+    if (ftruncate(fd, SIZE) < 0) {
+        perror("[-] ftruncate failed.\n");
+        exit(1);
+    }
+
+    shared_memory = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (shared_memory == MAP_FAILED) {
+        perror("[-] mmap failed.\n");
+        exit(1);
+    }
+    printf("[+] Server ready to receive data.\n");
+    // Wait for the client to write data and set the first byte to '1'
+    sleep(2);
+    printf("[+] Waiting to the client to finish writing...\n");
+    long size = 0;
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
+
+    memcpy(data, shared_memory, SIZE);
+
+    calculated_checksum = checksum(data);
+    gettimeofday(&end_time, NULL);
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+        size = SIZE;
+    }
+    printf("---------------------------------------\n");
+    printf("|    Received a Chunk of bytes         \n");
+    printf("| Type : mmap   | Param : %s \n",FILENAME);
+    printf("| Info : Bytes received: %ld\n", size);
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
+    double percentage_received = ((double)size / SIZE) * 100;
+    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+    printf("| Checksum : %ld                        \n", calculated_checksum);
+    printf("---------------------------------------\n");
+    
+
+    // Cleanup
+    munmap(shared_memory, SIZE);
+    close(fd);
+    unlink(FILENAME);
+    free(data);
 }
 
 //UDS DGRAM socket (server) and sending 100MB of data and checksum.
@@ -70,14 +126,17 @@ void UDSdgram(char *socket_path)
     calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         |\n");
-    printf("| Type : UDS   | Param : dgram |\n");
+    printf("|    Received a Chunk of bytes         \n");
+    printf("| Type : UDS   | Param : dgram \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
-    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+    printf("| Checksum : %ld                        \n", calculated_checksum);
     printf("---------------------------------------\n");
 
     close(server_fd);
@@ -151,14 +210,17 @@ void UDSstream(char *socket_path)
     calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         |\n");
-    printf("| Type : UDS   | Param : stream |\n");
+    printf("|    Received a Chunk of bytes         \n");
+    printf("| Type : UDS   | Param : stream \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
-    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+    printf("| Checksum : %ld                        \n", calculated_checksum);
     printf("---------------------------------------\n");
 
     close(client_fd);
@@ -244,15 +306,17 @@ void UDPipv6(int port)
     calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         |\n");
-    printf("| Type : Ipv6   | Param : UDP protocol |\n");
+    printf("|    Received a Chunk of bytes         \n");
+    printf("| Type : Ipv6   | Param : UDP protocol \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
-    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+    printf("| Checksum : %ld                        \n", calculated_checksum);
     printf("---------------------------------------\n");
 
     free(data);
@@ -342,15 +406,17 @@ void UDPipv4(int port)
 
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
-
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chunk of bytes         |\n");
-    printf("| Type : Ipv4   | Param : UDP protocol |\n");
+    printf("|    Received a Chunk of bytes         \n");
+    printf("| Type : Ipv4   | Param : UDP protocol \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms);
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("| Percentage bytes received: %.2f%%    |\n", percentage_received);
-    printf("| Checksum : %ld                        |\n", calculated_checksum);
+    printf("| Percentage bytes received: %.2f%%    \n", percentage_received);
+    printf("| Checksum : %ld                        \n", calculated_checksum);
     printf("---------------------------------------\n");
 
     free(data);
@@ -421,14 +487,16 @@ void TCPipv4(int port)
 
     gettimeofday(&end_time, NULL);                                                                                        // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
-
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chuck of bytes         |\n");
-    printf("| Type : Ipv4   | Param : TCP protcol  |\n");
+    printf("|    Received a Chuck of bytes         \n");
+    printf("| Type : Ipv4   | Param : TCP protcol  \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms); // Affichez le temps écoulé en ms
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms); // Affichez le temps écoulé en ms
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("|Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("|Percentage bytes received: %.2f%%    \n", percentage_received);
     printf("---------------------------------------\n");
 
     free(data);
@@ -494,14 +562,16 @@ void TCPipv6(int port)
 
     gettimeofday(&end_time, NULL);                                                                                        // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L; // Calculez le temps écoulé en ms
-
+    if(calculated_checksum==checkSum){
+        printf("[+] Valid Checksum !.\n");
+    }
     printf("---------------------------------------\n");
-    printf("|    Received a Chuck of bytes         |\n");
-    printf("| Type : Ipv6   | Param : TCP protcol  |\n");
+    printf("|    Received a Chuck of bytes         \n");
+    printf("| Type : Ipv6   | Param : TCP protcol  \n");
     printf("| Info : Bytes received: %zd\n", total_bytes_received);
-    printf("|  Time spent: %ld milliseconds       |\n", time_spent_ms); // Affichez le temps écoulé en ms
+    printf("|  Time spent: %ld milliseconds       \n", time_spent_ms);
     double percentage_received = ((double)total_bytes_received / SIZE) * 100;
-    printf("|Percentage bytes received: %.2f%%    |\n", percentage_received);
+    printf("|Percentage bytes received: %.2f%%    \n", percentage_received);
     printf("---------------------------------------\n");
 
     free(data);
@@ -512,7 +582,11 @@ void TCPipv6(int port)
 
 void socketFactory(char *type, char *param, int port)
 {
-    printf("Welcome to the socket factory.\n");
+    if(strcmp(type,"mmap")==0){
+        char* FILENAME = param;
+        mmap_server(FILENAME);
+    }
+
     if(strcmp(type, "uds") == 0)
     {
         char *socket_path = "/tmp/socket";
@@ -563,9 +637,8 @@ void recArgs(int client_fd, char *type, char *param)
 {
     recv(client_fd, type, ARGSIZE, 0);
     recv(client_fd, param, ARGSIZE, 0);
-    printf("Reciving the parameters :");
-    printf("Type: %s ;", type);
-    printf("Param: %s\n", param);
+    recv(client_fd, &checkSum, sizeof(long), 0);
+    printf("[+] Reciving the parameters [%s] [%s]\n",type,param);
 }
 
 void chatTCP(int client_fd, int server_fd)
@@ -642,7 +715,7 @@ int main(int argc, char *argv[])
         close(server_fd);
         return 1;
     }
-    printf("Socket created.\n");
+    printf("[+] Socket created.\n");
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
@@ -662,7 +735,7 @@ int main(int argc, char *argv[])
         close(server_fd);
         return 1;
     }
-    printf("Bind done.\n");
+    printf("[+] Bind done.\n");
     client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
     if (client_fd < 0)
     {
@@ -671,7 +744,6 @@ int main(int argc, char *argv[])
         close(client_fd);
         return 1;
     }
-    printf("Accepting....\n");
     if (pFlag == 1)
     {
         recArgs(client_fd, type, param);
