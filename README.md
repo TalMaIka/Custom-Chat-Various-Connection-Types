@@ -8,6 +8,7 @@ The code includes a client program written in C that can communicate with a serv
 * **Mmap**
 
  The client can preform a preformance test by applying the **"-p"** flag and will send **100MB chunk of data** and by the end of the transer of any **variation** the server side will print the details of the transfer.
+ The **"-q"** flag can also be use to apply a quiet mode on the server. The only output with the q_flag is : <type>_<param>,TimeToReceive (ex : ipv4_tcp,112233).
 
 ### Here are the main methods used by each side client and server with a small summary:
 
