@@ -131,7 +131,7 @@ void UDSdgram(char *socket_path, char *data) {
     server_addr.sun_family = AF_UNIX;
     strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
     sleep(1);
-    printf("[+] Sending data...\n");
+    printf("[+] Sending data....\n");
     size_t total_bytes_sent = 0;
     int size = 30000;
     while (total_bytes_sent < SIZE) {
