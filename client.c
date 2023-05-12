@@ -138,8 +138,7 @@ void UDSdgram(char *socket_path, char *data) {
         if (total_bytes_sent + size > SIZE) {
             size = SIZE - total_bytes_sent;
         }
-        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,
-                                    sizeof(server_addr));
+        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,sizeof(server_addr));
         total_bytes_sent += bytes_sent;
     }
     printf("[+] Data sent.\n");
