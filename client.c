@@ -282,7 +282,7 @@ void socketFactory(char *type, char *param, int port, char *data) {
         pipe_client(data, PIPENAME);
     }
     if (strcmp(type, "uds") == 0) {
-        char *socket_path = param;
+        char *socket_path = "/tmp/socket";
         if (strcmp(param, "dgram") == 0) {
             UDSdgram(socket_path, data);
         } else {

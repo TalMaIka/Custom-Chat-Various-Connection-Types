@@ -75,7 +75,7 @@ void pipe_client(char *PIPENAME)
     }
     else
     {
-        printf("pipe,%ld", time_spent_ms);
+        printf("pipe,%ld\n", time_spent_ms);
     }
     close(pipe_fd);
     unlink(PIPENAME);
@@ -144,7 +144,7 @@ void mmap_server(char *FILENAME)
     }
     else
     {
-        printf("mmap,%ld", time_spent_ms);
+        printf("mmap,%ld\n", time_spent_ms);
     }
 
     // Cleanup
@@ -217,7 +217,7 @@ void UDSdgram(char *socket_path)
     }
     else
     {
-        printf("uds_dgram,%ld", time_spent_ms);
+        printf("uds_dgram,%ld\n", time_spent_ms);
     }
     close(server_fd);
     unlink(socket_path);
@@ -310,7 +310,7 @@ void UDSstream(char *socket_path)
     }
     else
     {
-        printf("uds_stream,%ld", time_spent_ms);
+        printf("uds_stream,%ld\n", time_spent_ms);
     }
     close(client_fd);
     close(server_fd);
@@ -640,7 +640,7 @@ void TCPipv4(int port)
     }
     else
     {
-        printf("ipv4_tcp,%ld", time_spent_ms);
+        printf("ipv4_tcp,%ld\n", time_spent_ms);
     }
     free(data);
     close(server_fd);
@@ -709,8 +709,6 @@ void TCPipv6(int port)
         total_bytes_received += bytes_received;
     }
     long calculated_checksum = checksum(data);
-    printf("Checksum : %ld\n", calculated_checksum);
-
     gettimeofday(&end_time,
                  NULL); // Utilisez gettimeofday au lieu de time
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L +
@@ -733,7 +731,7 @@ void TCPipv6(int port)
     }
     else
     {
-        printf("ipv6_tcp,%ld", time_spent_ms);
+        printf("ipv6_tcp,%ld\n", time_spent_ms);
     }
     free(data);
     close(server_fd);
@@ -872,8 +870,9 @@ int main(int argc, char *argv[])
     {
         pFlag = 1;
     }
-    if (argc == 4 && strcmp(argv[3], "-q") == 0)
+    if (argc == 4 && strcmp(argv[2], "-p")==0 && strcmp(argv[3], "-q") == 0)
     {
+        pFlag =1;
         qFlag = 1;
     }
     int server_fd, client_fd, len;
