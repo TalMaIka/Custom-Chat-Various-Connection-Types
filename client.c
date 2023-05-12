@@ -184,7 +184,7 @@ void UDPipv6(int port, char *ip, char *data) {
         printf("[-] Failed to send all data. Sent %zd bytes out of %d\n", total_bytes_sent, SIZE);
         exit(1);
     }
-    printf("[+] Data sent.\n");
+    printf("[+] Data sent : %zd bytes.\n",total_bytes_sent);
     close(client_fd);
 }
 
@@ -222,7 +222,7 @@ void UDPipv4(int port, char *ip, char *data) {
         printf("[-] Failed to send all data. Sent %zd bytes out of %d\n", total_bytes_sent, SIZE);
         exit(1);
     }
-    printf("[+] Data sent.\n");
+    printf("[+] Data sent : %zd bytes.\n",total_bytes_sent);
     close(client_fd);
 }
 
