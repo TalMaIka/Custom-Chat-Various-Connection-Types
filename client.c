@@ -10,6 +10,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #define BUFFER_SIZE 1024
 #define ARGSIZE 10
@@ -37,10 +38,9 @@ long checksum(char *data) {
 
 //Pipeing filename and sending 100MB of data and checksum (FIFO).
 void pipe_client(char *data, char *PIPENAME) {
-    sleep(1);
     int pipe_fd;
     ssize_t sent_bytes = 0;
-    mknod(PIPENAME, S_IFIFO | 0666, 0);
+    mkfifo(PIPENAME, 0666);
     pipe_fd = open(PIPENAME, O_WRONLY);
     printf("[+] Pipe created.\n");
     while (sent_bytes < SIZE) {
@@ -138,15 +138,14 @@ void UDSdgram(char *socket_path, char *data) {
         if (total_bytes_sent + size > SIZE) {
             size = SIZE - total_bytes_sent;
         }
-        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,
-                                    sizeof(server_addr));
+        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,sizeof(server_addr));
         total_bytes_sent += bytes_sent;
     }
     printf("[+] Data sent.\n");
     close(client_fd);
 }
 
-// IPv4 TCP socket (client) and sending 100MB of data and checksum.
+// Ipv6 UDP socket (client) and sending 100MB of data and checksum.
 void UDPipv6(int port, char *ip, char *data) {
     int client_fd;
     struct sockaddr_in6 server_addr;
@@ -156,7 +155,7 @@ void UDPipv6(int port, char *ip, char *data) {
         perror("[-] Socket failed.\n");
         exit(1);
     }
-    server_addr.sin6_family = AF_INET;
+    server_addr.sin6_family = AF_INET6;
     server_addr.sin6_port = htons(port + 1);
     if (inet_pton(AF_INET6, ip, &server_addr.sin6_addr) <= 0) {
         perror("[-] Invalid address.\n");
@@ -169,9 +168,16 @@ void UDPipv6(int port, char *ip, char *data) {
         if (total_bytes_sent + size > SIZE) {
             size = SIZE - total_bytes_sent;
         }
-        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,
-                                    sizeof(server_addr));
+        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,sizeof(server_addr));
+        if (bytes_sent == -1) {
+            perror("[-] sendto failed");
+            exit(1);
+        }
         total_bytes_sent += bytes_sent;
+    }
+    if (total_bytes_sent != SIZE) {
+        printf("[-] Failed to send all data. Sent %zd bytes out of %d\n", total_bytes_sent, SIZE);
+        exit(1);
     }
     printf("[+] Data sent.\n");
     close(client_fd);
@@ -200,9 +206,16 @@ void UDPipv4(int port, char *ip, char *data) {
         if (total_bytes_sent + size > SIZE) {
             size = SIZE - total_bytes_sent;
         }
-        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,
-                                    sizeof(server_addr));
+        ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,sizeof(server_addr));
+        if (bytes_sent == -1) {
+            perror("[-] sendto failed");
+            exit(1);
+        }
         total_bytes_sent += bytes_sent;
+    }
+    if (total_bytes_sent != SIZE) {
+        printf("[-] Failed to send all data. Sent %zd bytes out of %d\n", total_bytes_sent, SIZE);
+        exit(1);
     }
     printf("[+] Data sent.\n");
     close(client_fd);
