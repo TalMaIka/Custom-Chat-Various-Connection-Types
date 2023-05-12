@@ -30,7 +30,6 @@ long checksum(char *data)
 
 void pipe_client(char *PIPENAME)
 {
-    sleep(1);
     int pipe_fd;
     char *data = (char *)malloc(SIZE);
     long read_bytes;
@@ -39,6 +38,7 @@ void pipe_client(char *PIPENAME)
     {
         printf("[+] Waiting for connection.\n");
     }
+    sleep(2);
     pipe_fd = open(PIPENAME, O_RDONLY);
     if (!qFlag)
     {
@@ -124,7 +124,7 @@ void mmap_server(char *FILENAME)
 
     calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
-    long time_spent_ms =(end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
     if (calculated_checksum == checkSum && !qFlag)
     {
         printf("[+] Valid Checksum !.\n");
@@ -193,12 +193,12 @@ void UDSdgram(char *socket_path)
         {
             size = SIZE - total_bytes_received;
         }
-        ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, size, 0,(struct sockaddr *)&client_addr, &client_addr_size);
+        ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, size, 0, (struct sockaddr *)&client_addr, &client_addr_size);
         total_bytes_received += bytes_received;
     }
     calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
-    long time_spent_ms =(end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
     if (calculated_checksum == checkSum && !qFlag)
     {
         printf("[+] Valid Checksum !.\n");
@@ -388,7 +388,7 @@ void UDPipv6(int port)
         }
         else
         {
-            ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, SIZE - total_bytes_received, 0, (struct sockaddr *)&server_addr, &addr_len);
+            ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, SIZE, 0, (struct sockaddr *)&server_addr, &addr_len);
             if (bytes_received < 0)
             {
                 perror("recvfrom");
@@ -397,15 +397,24 @@ void UDPipv6(int port)
             total_bytes_received += bytes_received;
         }
     }
-    calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
+
+    if (total_bytes_received == SIZE)
+    {
+        calculated_checksum = checksum(data);
+    }
+
     if (calculated_checksum == checkSum && !qFlag)
     {
         printf("[+] Valid Checksum !.\n");
     }
     if (!qFlag)
     {
+        if (calculated_checksum != checkSum)
+        {
+            printf("[Error]Invalid CheckSum\n");
+        }
         printf("---------------------------------------\n");
         printf("|    Received a Chunk of bytes         \n");
         printf("| Type : Ipv6   | Param : UDP protocol \n");
@@ -498,8 +507,7 @@ void UDPipv4(int port)
         }
         else
         {
-            ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, SIZE - total_bytes_received, 0,
-                                              (struct sockaddr *)&client_addr, &addr_len);
+            ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, SIZE, 0, (struct sockaddr *)&client_addr, &addr_len);
             if (bytes_received < 0)
             {
                 perror("recvfrom");
@@ -508,20 +516,24 @@ void UDPipv4(int port)
             total_bytes_received += bytes_received;
         }
     }
+    gettimeofday(&end_time, NULL);
+    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
 
     if (total_bytes_received == SIZE)
     {
         calculated_checksum = checksum(data);
     }
 
-    gettimeofday(&end_time, NULL);
-    long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
     if (calculated_checksum == checkSum && !qFlag)
     {
         printf("[+] Valid Checksum !.\n");
     }
     if (!qFlag)
     {
+        if (calculated_checksum != checkSum)
+        {
+            printf("[Error]Invalid CheckSum\n");
+        }
         printf("---------------------------------------\n");
         printf("|    Received a Chunk of bytes         \n");
         printf("| Type : Ipv4   | Param : UDP protocol \n");
@@ -614,7 +626,8 @@ void TCPipv4(int port)
     {
         printf("[+] Valid Checksum !.\n");
     }
-    if(!qFlag){
+    if (!qFlag)
+    {
         printf("---------------------------------------\n");
         printf("|    Received a Chuck of bytes         \n");
         printf("| Type : Ipv4   | Param : TCP protcol  \n");
@@ -625,8 +638,9 @@ void TCPipv4(int port)
         printf("| Checksum : %ld                        \n", calculated_checksum);
         printf("---------------------------------------\n");
     }
-    else{
-        printf("ipv4_tcp,%ld",time_spent_ms);
+    else
+    {
+        printf("ipv4_tcp,%ld", time_spent_ms);
     }
     free(data);
     close(server_fd);
@@ -705,7 +719,8 @@ void TCPipv6(int port)
     {
         printf("[+] Valid Checksum !.\n");
     }
-    if(!qFlag){
+    if (!qFlag)
+    {
         printf("---------------------------------------\n");
         printf("|    Received a Chuck of bytes         \n");
         printf("| Type : Ipv6   | Param : TCP protcol  \n");
@@ -716,8 +731,9 @@ void TCPipv6(int port)
         printf("| Checksum : %ld                        \n", calculated_checksum);
         printf("---------------------------------------\n");
     }
-    else{
-        printf("ipv6_tcp,%ld",time_spent_ms);
+    else
+    {
+        printf("ipv6_tcp,%ld", time_spent_ms);
     }
     free(data);
     close(server_fd);
@@ -761,8 +777,9 @@ void socketFactory(char *type, char *param, int port)
             UDPipv4(port);
         }
         else
-        {  
-            if(!qFlag){
+        {
+            if (!qFlag)
+            {
                 printf("Invalid parameter.\n");
             }
         }
@@ -778,8 +795,9 @@ void socketFactory(char *type, char *param, int port)
             UDPipv6(port);
         }
         else
-        {   
-            if(!qFlag){
+        {
+            if (!qFlag)
+            {
                 printf("Invalid parameter.\n");
             }
         }
@@ -791,7 +809,8 @@ void recArgs(int client_fd, char *type, char *param)
     recv(client_fd, type, ARGSIZE, 0);
     recv(client_fd, param, ARGSIZE, 0);
     recv(client_fd, &checkSum, sizeof(long), 0);
-    if(!qFlag){
+    if (!qFlag)
+    {
         printf("[+] Reciving the parameters [%s] [%s]\n", type, param);
     }
 }
@@ -869,7 +888,8 @@ int main(int argc, char *argv[])
         close(server_fd);
         return 1;
     }
-    if(!qFlag){
+    if (!qFlag)
+    {
         printf("[+] Socket created.\n");
     }
     server_addr.sin_family = AF_INET;
@@ -891,7 +911,8 @@ int main(int argc, char *argv[])
         close(server_fd);
         return 1;
     }
-    if(!qFlag){
+    if (!qFlag)
+    {
         printf("[+] Bind done.\n");
     }
     client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
