@@ -5,6 +5,7 @@ The code includes a client program written in C that can communicate with a serv
 * **IPv4** and **IPv6 UDP** sockets
 * **Unix domain** sockets (**STREAM** and **DGRAM**)
 * **Pipe**
+* **Mmap**
 
  The client can preform a preformance test by applying the **"-p"** flag and will send **100MB chunk of data** and by the end of the transer of any **variation** the server side will print the details of the transfer.
 
