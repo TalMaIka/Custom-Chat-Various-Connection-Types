@@ -84,8 +84,6 @@ void mmap_client(char *data, char *FILENAME) {
 void UDSstream(char *socket_path, char *data) {
     int client_fd;
     struct sockaddr_un server_addr;
-    char buffer[BUFFER_SIZE];
-    memset(buffer, '0', BUFFER_SIZE);
 
     if ((client_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         perror("[-] Socket failed.\n");
@@ -95,7 +93,7 @@ void UDSstream(char *socket_path, char *data) {
     memset(&server_addr, 0, sizeof(struct sockaddr_un));
     server_addr.sun_family = AF_UNIX;
     strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
-    sleep(0.5);
+    sleep(1);
     if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
         perror("[-] Connect failed.\n");
         exit(1);
@@ -109,6 +107,10 @@ void UDSstream(char *socket_path, char *data) {
             size = SIZE - total_bytes_sent;
         }
         ssize_t bytes_sent = send(client_fd, data + total_bytes_sent, size, 0);
+        if (bytes_sent == -1) {
+            perror("[-] Error sending data");
+            exit(1);
+        }
         total_bytes_sent += bytes_sent;
     }
     printf("[+] Data sent.\n");
@@ -119,8 +121,6 @@ void UDSstream(char *socket_path, char *data) {
 void UDSdgram(char *socket_path, char *data) {
     int client_fd;
     struct sockaddr_un server_addr;
-    char buffer[BUFFER_SIZE];
-    memset(buffer, '0', BUFFER_SIZE);
 
     if ((client_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("[-] Socket failed.\n");
@@ -130,7 +130,7 @@ void UDSdgram(char *socket_path, char *data) {
     memset(&server_addr, 0, sizeof(struct sockaddr_un));
     server_addr.sun_family = AF_UNIX;
     strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
-
+    sleep(1);
     printf("[+] Sending data...\n");
     size_t total_bytes_sent = 0;
     int size = 30000;
@@ -139,8 +139,13 @@ void UDSdgram(char *socket_path, char *data) {
             size = SIZE - total_bytes_sent;
         }
         ssize_t bytes_sent = sendto(client_fd, data + total_bytes_sent, size, 0, (struct sockaddr *) &server_addr,sizeof(server_addr));
+        if (bytes_sent == -1) {
+            perror("[-] Error sending data");
+            exit(1);
+        }
         total_bytes_sent += bytes_sent;
     }
+    printf("[+] Bytes sent: %zd\n", total_bytes_sent);
     printf("[+] Data sent.\n");
     close(client_fd);
 }
@@ -281,7 +286,7 @@ void socketFactory(char *type, char *param, int port, char *data) {
         pipe_client(data, PIPENAME);
     }
     if (strcmp(type, "uds") == 0) {
-        char *socket_path = "/tmp/socket";
+        char *socket_path = "/tmp/file";
         if (strcmp(param, "dgram") == 0) {
             UDSdgram(socket_path, data);
         } else {
@@ -409,6 +414,7 @@ int main(int argc, char *argv[]) {
     } else {
         char *data = generete_random_data();
         sendArgs(client_fd, argv[4], argv[5], data);
+        close(client_fd);
         socketFactory(argv[4], argv[5], port, data);
         free(data);
     }

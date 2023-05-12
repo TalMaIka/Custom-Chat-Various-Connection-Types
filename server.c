@@ -194,10 +194,14 @@ void UDSdgram(char *socket_path)
             size = SIZE - total_bytes_received;
         }
         ssize_t bytes_received = recvfrom(server_fd, data + total_bytes_received, size, 0, (struct sockaddr *)&client_addr, &client_addr_size);
+        if (bytes_received == -1) {
+            perror("[-] Error sending data");
+            exit(1);
+        }
         total_bytes_received += bytes_received;
     }
-    calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
+    calculated_checksum = checksum(data);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
     if (calculated_checksum == checkSum && !qFlag)
     {
@@ -228,14 +232,15 @@ void UDSdgram(char *socket_path)
 void UDSstream(char *socket_path)
 {
     int server_fd, client_fd;
-    struct sockaddr_un server_addr, client_addr;
+    struct sockaddr_un server_addr;
     char buffer[BUFFER_SIZE];
-    socklen_t client_addr_size;
+    socklen_t server_addr_len;
     long calculated_checksum = 0;
 
     if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
         perror("[-] Socket failed.\n");
+        unlink(socket_path);
         exit(1);
     }
 
@@ -250,10 +255,11 @@ void UDSstream(char *socket_path)
         perror("setsockopt");
         exit(1);
     }
-
+    printf(" Path : %s\n",socket_path);
     if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("[-] Bind failed.\n");
+        unlink(socket_path);
         exit(1);
     }
 
@@ -266,8 +272,8 @@ void UDSstream(char *socket_path)
     {
         printf("[+] Server ready to receive data.\n");
     }
-    client_addr_size = sizeof(client_addr);
-    client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_size);
+    server_addr_len = sizeof(server_addr);
+    client_fd = accept(server_fd, (struct sockaddr *)&server_addr, &server_addr_len);
     if (client_fd < 0)
     {
         perror("[-] Accept failed.\n");
@@ -286,11 +292,14 @@ void UDSstream(char *socket_path)
             size = SIZE - total_bytes_received;
         }
         ssize_t bytes_received = recv(client_fd, data + total_bytes_received, size, 0);
+        if (bytes_received == -1) {
+            perror("[-] Error sending data");
+            exit(1);
+        }
         total_bytes_received += bytes_received;
     }
-
-    calculated_checksum = checksum(data);
     gettimeofday(&end_time, NULL);
+    calculated_checksum = checksum(data);
     long time_spent_ms = (end_time.tv_sec - start_time.tv_sec) * 1000L + (end_time.tv_usec - start_time.tv_usec) / 1000L;
     if (calculated_checksum == checkSum && !qFlag)
     {
@@ -754,7 +763,7 @@ void socketFactory(char *type, char *param, int port)
 
     if (strcmp(type, "uds") == 0)
     {
-        char *socket_path = "/tmp/socket";
+        char *socket_path = "/tmp/file";
         if (strcmp(param, "dgram") == 0)
         {
             UDSdgram(socket_path);
@@ -925,6 +934,7 @@ int main(int argc, char *argv[])
     if (pFlag == 1)
     {
         recArgs(client_fd, type, param);
+        close(client_fd);
         socketFactory(type, param, port);
     }
     else
